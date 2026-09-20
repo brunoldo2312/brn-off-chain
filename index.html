@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Carteira BRN P2P — Mural de Ordens (Escrow on-chain)</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+<script src="https://sites.super.myninja.ai/_assets/ninja-daytona-script.js"></script>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ================= HEADER ================= -->
+  <header class="top">
+    <div class="brand">
+      <div class="logo">B</div>
+      <div>
+        <h1>Carteira BRN P2P</h1>
+        <p>Mural de ordens de venda BRN ⇄ USDC · Escrow on-chain</p>
+      </div>
+    </div>
+    <div class="net-badge">
+      <span class="dot load" id="netDot"></span>
+      <span id="netText">Consultando…</span>
+    </div>
+  </header>
+
+  <!-- ================= CARTEIRA ================= -->
+  <section class="card">
+    <div class="wallet">
+      <div>
+        <h2>Sua carteira</h2>
+        <p class="sub">Conecte a MetaMask na rede Polygon para criar, executar ou cancelar ordens.</p>
+      </div>
+      <div class="row" style="flex:0 0 auto">
+        <button class="btn-primary" id="btnConnect">🔌 Conectar carteira</button>
+      </div>
+    </div>
+    <div id="walletInfo" style="display:none; margin-top:16px">
+      <div class="row" style="align-items:center">
+        <span class="addr" id="addr">—</span>
+        <button class="btn-ghost btn-sm" id="btnDisconnect" style="flex:0 0 auto">Desconectar</button>
+      </div>
+      <div class="balances" style="margin-top:16px">
+        <div class="bal">
+          <div class="t"><span class="chip brn">B</span> Saldo BRN</div>
+          <div class="v" id="balBRN">—</div>
+        </div>
+        <div class="bal">
+          <div class="t"><span class="chip usdc">$</span> Saldo USDC</div>
+          <div class="v" id="balUSDC">—</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= CRIAR ORDEM ================= -->
+  <section class="card">
+    <h2>Criar ordem de venda</h2>
+    <p class="sub">
+      Você oferece <b>BRN</b> e pede <b>USDC</b>. Os BRN ficam travados no contrato (escrow)
+      até alguém executar a ordem — ou você cancelar.
+    </p>
+    <div class="row">
+      <div>
+        <label for="inBRN">Você oferece (BRN)</label>
+        <input id="inBRN" type="number" min="0" step="any" placeholder="Ex.: 1000">
+      </div>
+      <div>
+        <label for="inUSDC">Você pede (USDC)</label>
+        <input id="inUSDC" type="number" min="0" step="any" placeholder="Ex.: 1">
+      </div>
+    </div>
+    <div class="note info" id="rateInfo" style="display:none"></div>
+    <div class="row" style="margin-top:16px">
+      <button class="btn-primary" id="btnCreate" disabled>➕ Criar ordem (trava BRN)</button>
+      <button class="btn-ghost" id="btnApproveBRN" disabled>✅ Aprovar BRN</button>
+    </div>
+    <div class="note" id="createHint" style="display:none"></div>
+  </section>
+
+  <!-- ================= MURAL ================= -->
+  <section class="card">
+    <div class="mural-head">
+      <div>
+        <h2>Mural de ordens</h2>
+        <p class="sub">Lido direto da blockchain — não precisa conectar carteira para ver.</p>
+      </div>
+      <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap">
+        <span class="counter" id="counter">⏳ Consultando…</span>
+        <button class="btn-ghost btn-sm" id="btnRefresh">🔄 Atualizar</button>
+      </div>
+    </div>
+    <div class="orders" id="orders">
+      <div class="state">
+        <div class="spinner"></div>
+        Consultando a blockchain…
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= EXPLICAÇÃO ================= -->
+  <section class="card explain">
+    <h2>Como funciona (explicação)</h2>
+    <p class="sub">Entenda o fluxo on-chain do mural BRN ⇄ USDC.</p>
+
+    <h3>1. O que é o EscrowFactory?</h3>
+    <p>
+      É um <b>contrato inteligente já publicado na Polygon</b> no endereço
+      <code>0x5C305aCFF5cDFAee90276c2acEA4Aa841f7062d8</code>. Ele funciona como uma
+      <b>fábrica de escrows</b>: cada vez que alguém cria uma ordem de venda, a fábrica
+      <b>implanta um novo contrato de escrow</b> só para aquela ordem. Esse escrow guarda
+      os tokens do vendedor e as regras da troca.
+    </p>
+
+    <h3>2. O fluxo de uma ordem</h3>
+    <div class="flow">
+      <span class="step">1. Vendedor aprova BRN</span>
+      <span class="sep">→</span>
+      <span class="step">2. Cria ordem (BRN travado)</span>
+      <span class="sep">→</span>
+      <span class="step">3. Comprador aprova USDC</span>
+      <span class="sep">→</span>
+      <span class="step">4. Executa a ordem</span>
+      <span class="sep">→</span>
+      <span class="step">5. Troca atômica</span>
+    </div>
+    <ol>
+      <li><b>Aprovar BRN:</b> o vendedor autoriza a fábrica a mover seus BRN
+          (<code>approve</code> no token BRN).</li>
+      <li><b>Criar ordem:</b> chama <code>criarOrdem(tokenOferecido, tokenDesejado, valorOferecido, valorDesejado)</code>.
+          A fábrica cria o escrow e <b>puxa os BRN</b> do vendedor para dentro dele.</li>
+      <li><b>Aprovar USDC:</b> o comprador autoriza o escrow a mover seus USDC.</li>
+      <li><b>Executar:</b> o comprador chama <code>executar()</code> no escrow. O contrato
+          faz a <b>troca atômica</b>: manda os BRN para o comprador e os USDC para o vendedor.</li>
+      <li><b>Cancelar:</b> enquanto ninguém executou, o vendedor pode chamar
+          <code>cancelar()</code> e receber os BRN de volta.</li>
+    </ol>
+
+    <h3>3. Por que é seguro?</h3>
+    <p>
+      A troca acontece <b>dentro do contrato</b>, na mesma transação. Ou as duas pernas
+      (BRN e USDC) acontecem juntas, ou nada acontece. Não existe o risco de uma parte
+      enviar e a outra não enviar — é <b>atômico</b>. Os BRN ficam <b>travados no escrow</b>,
+      então o comprador tem a garantia de que o vendedor realmente tem os tokens.
+    </p>
+
+    <h3>4. O que este front-end faz</h3>
+    <ul>
+      <li><b>Lê o mural direto da blockchain</b> (via RPC público), sem precisar de carteira.</li>
+      <li>Mostra o <b>contador de ordens ativas</b> e o estado de cada uma.</li>
+      <li>Faz o <b>approve automático</b> de BRN (para a fábrica) e de USDC (para o escrow).</li>
+      <li>Permite <b>criar</b>, <b>executar</b> e <b>cancelar</b> ordens pela MetaMask.</li>
+      <li>Usa <b>vários RPCs com fallback</b> e leitura paralela para nunca travar.</li>
+    </ul>
+
+    <h3>5. Endereços usados</h3>
+    <ul>
+      <li><b>EscrowFactory:</b> <code>0x5C305aCFF5cDFAee90276c2acEA4Aa841f7062d8</code></li>
+      <li><b>Token BRN:</b> <code>0xdBc1c747B1D4c27113F65A4620b8fEaC74e2A210</code> (18 decimais)</li>
+      <li><b>Token USDC:</b> <code>0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174</code> (6 decimais)</li>
+      <li><b>Rede:</b> Polygon Mainnet (chainId 137)</li>
+    </ul>
+
+    <div class="note">
+      ⚠️ <b>Atenção:</b> este é um contrato <b>não verificado</b> no PolygonScan. A interface
+      abaixo foi reconstruída a partir do bytecode. Teste sempre com valores pequenos antes
+      de usar valores reais.
+    </div>
+  </section>
+
+  <footer>
+    Carteira BRN P2P · Mural on-chain · Polygon Mainnet ·
+    <a href="https://polygonscan.com/address/0x5C305aCFF5cDFAee90276c2acEA4Aa841f7062d8" target="_blank" rel="noopener">ver contrato no PolygonScan</a>
+  </footer>
+</div>
+
+<div id="toasts"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
+
