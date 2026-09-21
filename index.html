@@ -1,185 +1,581 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Carteira BRN P2P — Mural de Ordens (Escrow on-chain)</title>
-<link rel="icon" href="favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="style.css">
-<script src="https://sites.super.myninja.ai/_assets/ninja-daytona-script.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BRN RWA — Carteira Digital</title>
+    <style>
+        :root { color-scheme: dark; }
+        * { box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+                         Roboto, sans-serif;
+            background: #0d1117; color: #e6edf3;
+            margin: 0; padding: 20px;
+            min-height: 100vh;
+        }
+        .container { max-width: 900px; margin: 0 auto; }
+        h1 {
+            color: #58a6ff; font-size: 22px;
+            border-bottom: 1px solid #30363d;
+            padding-bottom: 10px; margin-bottom: 20px;
+        }
+        .section {
+            background: #161b22; border: 1px solid #30363d;
+            border-radius: 8px; padding: 18px;
+            margin-bottom: 18px;
+        }
+        .section h3 {
+            margin: 0 0 14px; font-size: 15px;
+            color: #58a6ff;
+        }
+        .row {
+            display: flex; gap: 12px;
+            margin-bottom: 12px; flex-wrap: wrap;
+        }
+        .col { flex: 1; min-width: 220px; }
+        label {
+            display: block; font-size: 11px; color: #8b949e;
+            text-transform: uppercase; margin-bottom: 4px;
+            font-weight: 600; letter-spacing: 0.3px;
+        }
+        input, select {
+            width: 100%; padding: 10px;
+            background: #0d1117; color: #e6edf3;
+            border: 1px solid #30363d; border-radius: 6px;
+            box-sizing: border-box;
+            font-family: 'Consolas', monospace; font-size: 13px;
+        }
+        input:focus { outline: none; border-color: #58a6ff; }
+        button {
+            padding: 10px 18px; background: #238636; color: white;
+            border: 0; border-radius: 6px; cursor: pointer;
+            font-weight: 600; font-size: 13px;
+            margin-right: 6px; margin-bottom: 6px;
+        }
+        button:hover { background: #2ea043; }
+        button:active { transform: translateY(1px); }
+        button:disabled {
+            opacity: 0.5; cursor: not-allowed;
+            transform: none;
+        }
+        .btn-secondary {
+            background: #21262d; border: 1px solid #30363d;
+        }
+        .btn-secondary:hover { background: #30363d; }
+        .btn-warn { background: #b8860b; color: black; }
+        .btn-warn:hover { background: #d29922; }
+
+        .balance-box {
+            background: #1f6feb1a; border: 1px solid #1f6feb66;
+            border-radius: 6px; padding: 14px;
+            font-size: 15px; font-weight: 600;
+            color: #58a6ff; line-height: 1.7;
+            font-family: 'Consolas', monospace;
+        }
+        .p2p-box {
+            background: #2386361a; border: 1px solid #23863666;
+            border-radius: 6px; padding: 14px;
+            font-size: 13px; line-height: 1.7;
+            font-family: 'Consolas', monospace;
+            color: #7ee787;
+        }
+        .log-box {
+            font-family: 'Consolas', monospace; font-size: 12px;
+            background: #010409; padding: 12px;
+            border-radius: 6px; border: 1px solid #30363d;
+            max-height: 220px; overflow-y: auto;
+            color: #7ee787;
+        }
+        .log-box div { padding: 1px 0; }
+        .status {
+            display: inline-block; padding: 3px 10px;
+            border-radius: 10px; font-size: 11px;
+            font-weight: 700; vertical-align: middle;
+            margin-left: 8px;
+        }
+        .status.ok   { background: #23863633; color: #3fb950; }
+        .status.err  { background: #f8514933; color: #f85149; }
+        .status.warn { background: #d2992233; color: #d29922; }
+        .hint {
+            font-size: 11px; color: #8b949e;
+            margin-top: 6px;
+        }
+        code {
+            background: #21262d; padding: 1px 6px;
+            border-radius: 3px; font-size: 11px;
+        }
+    </style>
 </head>
 <body>
-<div class="wrap">
+    <div class="container">
+        <h1>🏦 BRN RWA — Carteira de Ativos</h1>
 
-  <!-- ================= HEADER ================= -->
-  <header class="top">
-    <div class="brand">
-      <div class="logo">B</div>
-      <div>
-        <h1>Carteira BRN P2P</h1>
-        <p>Mural de ordens de venda BRN ⇄ USDC · Escrow on-chain</p>
-      </div>
-    </div>
-    <div class="net-badge">
-      <span class="dot load" id="netDot"></span>
-      <span id="netText">Consultando…</span>
-    </div>
-  </header>
-
-  <!-- ================= CARTEIRA ================= -->
-  <section class="card">
-    <div class="wallet">
-      <div>
-        <h2>Sua carteira</h2>
-        <p class="sub">Conecte a MetaMask na rede Polygon para criar, executar ou cancelar ordens.</p>
-      </div>
-      <div class="row" style="flex:0 0 auto">
-        <button class="btn-primary" id="btnConnect">🔌 Conectar carteira</button>
-      </div>
-    </div>
-    <div id="walletInfo" style="display:none; margin-top:16px">
-      <div class="row" style="align-items:center">
-        <span class="addr" id="addr">—</span>
-        <button class="btn-ghost btn-sm" id="btnDisconnect" style="flex:0 0 auto">Desconectar</button>
-      </div>
-      <div class="balances" style="margin-top:16px">
-        <div class="bal">
-          <div class="t"><span class="chip brn">B</span> Saldo BRN</div>
-          <div class="v" id="balBRN">—</div>
+        <!-- ══════════════════════════════════════════════ -->
+        <!-- Rede P2P                                       -->
+        <!-- ══════════════════════════════════════════════ -->
+        <div class="section">
+            <h3>🌐 Rede P2P</h3>
+            <div class="p2p-box" id="p2p-status">
+                Consultando rede…
+            </div>
+            <div class="row" style="margin-top:12px">
+                <button class="btn-secondary" onclick="refreshP2P()">
+                    🔄 Atualizar Rede
+                </button>
+            </div>
+            <div class="hint">
+                Multicast LAN + conexões TCP persistentes.
+            </div>
         </div>
-        <div class="bal">
-          <div class="t"><span class="chip usdc">$</span> Saldo USDC</div>
-          <div class="v" id="balUSDC">—</div>
+
+        <!-- ══════════════════════════════════════════════ -->
+        <!-- Chaves                                         -->
+        <!-- ══════════════════════════════════════════════ -->
+        <div class="section">
+            <h3>🔑 Chaves Ativas (ECDSA secp256k1)</h3>
+            <div class="row">
+                <div class="col">
+                    <button onclick="generateWallet()">
+                        🎲 Criar Nova Carteira
+                    </button>
+                    <span id="api-status" class="status err">
+                        API: aguardando…
+                    </span>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col">
+                    <label>Endereço Público</label>
+                    <input id="wallet-address" readonly
+                           placeholder="Gere uma carteira...">
+                </div>
+            </div>
+            <div class="row">
+                <div class="col">
+                    <label>Chave Privada (SK)</label>
+                    <input id="wallet-sk" type="password" readonly>
+                </div>
+                <div class="col">
+                    <label>Chave Pública (PK)</label>
+                    <input id="wallet-pk" readonly>
+                </div>
+            </div>
+            <div class="hint">
+                ⚠️ Nunca compartilhe a chave privada.
+            </div>
         </div>
-      </div>
+
+        <!-- ══════════════════════════════════════════════ -->
+        <!-- Saldos                                         -->
+        <!-- ══════════════════════════════════════════════ -->
+        <div class="section">
+            <h3>📊 Saldo &amp; Portfólio</h3>
+            <div class="row">
+                <div class="col">
+                    <button class="btn-secondary"
+                            onclick="checkBalances()">
+                        🔄 Sincronizar Saldo
+                    </button>
+                    <button class="btn-secondary"
+                            onclick="requestFaucet()">
+                        🚰 Faucet (100 BRN)
+                    </button>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col">
+                    <div id="balance-display" class="balance-box">
+                        Nenhuma chave ativa monitorada.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ══════════════════════════════════════════════ -->
+        <!-- Backup                                         -->
+        <!-- ══════════════════════════════════════════════ -->
+        <div class="section">
+            <h3>💾 Backup Criptografado (.wallet)</h3>
+            <div class="row">
+                <div class="col">
+                    <label>Nome do Arquivo</label>
+                    <input id="file-name" value="carteira_rwa">
+                </div>
+                <div class="col">
+                    <label>Senha (mín. 12 caracteres)</label>
+                    <input id="file-pass" type="password"
+                           placeholder="••••••••••••">
+                </div>
+            </div>
+            <div class="row">
+                <button onclick="exportWallet()">
+                    💾 Salvar Backup
+                </button>
+                <button class="btn-secondary"
+                        onclick="importWallet()">
+                    📂 Carregar Backup
+                </button>
+            </div>
+            <div class="hint">
+                Guarda em <code>wallets/</code> com AES-256-GCM + Argon2id.
+            </div>
+        </div>
+
+        <!-- ══════════════════════════════════════════════ -->
+        <!-- Envio                                          -->
+        <!-- ══════════════════════════════════════════════ -->
+        <div class="section">
+            <h3>💸 Enviar BRN</h3>
+            <div class="row">
+                <div class="col">
+                    <label>Ativo</label>
+                    <input id="tx-asset" value="BRN" readonly>
+                </div>
+                <div class="col">
+                    <label>Quantidade</label>
+                    <input id="tx-amount" type="number"
+                           step="0.000001" placeholder="0.0">
+                </div>
+            </div>
+            <div class="row">
+                <div class="col">
+                    <label>Destinatário (brn1...)</label>
+                    <input id="tx-to" placeholder="brn1...">
+                </div>
+            </div>
+            <button class="btn-warn" onclick="sendTransaction()">
+                ✉️ Assinar e Enviar
+            </button>
+        </div>
+
+        <!-- ══════════════════════════════════════════════ -->
+        <!-- Mineração                                      -->
+        <!-- ══════════════════════════════════════════════ -->
+        <div class="section">
+            <h3>⛏️ Mineração</h3>
+            <div class="row">
+                <div class="col">
+                    <button onclick="toggleMining()" id="btn-mining">
+                        ▶ Iniciar Mineração
+                    </button>
+                    <span id="mining-status" class="status err">
+                        Parada
+                    </span>
+                </div>
+            </div>
+            <div class="hint">
+                Recompensa: <b>1.0 BRN</b> por bloco (fixo).
+            </div>
+        </div>
+
+        <!-- ══════════════════════════════════════════════ -->
+        <!-- Log                                            -->
+        <!-- ══════════════════════════════════════════════ -->
+        <div class="section">
+            <label>Console Operacional</label>
+            <div id="console-log" class="log-box">
+                Inicializando…
+            </div>
+        </div>
     </div>
-  </section>
 
-  <!-- ================= CRIAR ORDEM ================= -->
-  <section class="card">
-    <h2>Criar ordem de venda</h2>
-    <p class="sub">
-      Você oferece <b>BRN</b> e pede <b>USDC</b>. Os BRN ficam travados no contrato (escrow)
-      até alguém executar a ordem — ou você cancelar.
-    </p>
-    <div class="row">
-      <div>
-        <label for="inBRN">Você oferece (BRN)</label>
-        <input id="inBRN" type="number" min="0" step="any" placeholder="Ex.: 1000">
-      </div>
-      <div>
-        <label for="inUSDC">Você pede (USDC)</label>
-        <input id="inUSDC" type="number" min="0" step="any" placeholder="Ex.: 1">
-      </div>
-    </div>
-    <div class="note info" id="rateInfo" style="display:none"></div>
-    <div class="row" style="margin-top:16px">
-      <button class="btn-primary" id="btnCreate" disabled>➕ Criar ordem (trava BRN)</button>
-      <button class="btn-ghost" id="btnApproveBRN" disabled>✅ Aprovar BRN</button>
-    </div>
-    <div class="note" id="createHint" style="display:none"></div>
-  </section>
+    <script>
+        // ════════════════════════════════════════════
+        // Estado global
+        // ════════════════════════════════════════════
+        let API_READY = false;
+        let wallet = { address: "", sk: "", pk: "" };
+        let mining = false;
 
-  <!-- ================= MURAL ================= -->
-  <section class="card">
-    <div class="mural-head">
-      <div>
-        <h2>Mural de ordens</h2>
-        <p class="sub">Lido direto da blockchain — não precisa conectar carteira para ver.</p>
-      </div>
-      <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap">
-        <span class="counter" id="counter">⏳ Consultando…</span>
-        <button class="btn-ghost btn-sm" id="btnRefresh">🔄 Atualizar</button>
-      </div>
-    </div>
-    <div class="orders" id="orders">
-      <div class="state">
-        <div class="spinner"></div>
-        Consultando a blockchain…
-      </div>
-    </div>
-  </section>
+        // ════════════════════════════════════════════
+        // Utilidades
+        // ════════════════════════════════════════════
+        function log(msg) {
+            const box = document.getElementById('console-log');
+            const ts = new Date().toLocaleTimeString();
+            box.innerHTML += `<div>[${ts}] ${msg}</div>`;
+            box.scrollTop = box.scrollHeight;
+        }
 
-  <!-- ================= EXPLICAÇÃO ================= -->
-  <section class="card explain">
-    <h2>Como funciona (explicação)</h2>
-    <p class="sub">Entenda o fluxo on-chain do mural BRN ⇄ USDC.</p>
+        function setApiStatus(ok) {
+            const el = document.getElementById('api-status');
+            el.className = 'status ' + (ok ? 'ok' : 'err');
+            el.textContent = 'API: ' + (ok ? 'pronta' : 'aguardando…');
+            API_READY = ok;
+        }
 
-    <h3>1. O que é o EscrowFactory?</h3>
-    <p>
-      É um <b>contrato inteligente já publicado na Polygon</b> no endereço
-      <code>0x5C305aCFF5cDFAee90276c2acEA4Aa841f7062d8</code>. Ele funciona como uma
-      <b>fábrica de escrows</b>: cada vez que alguém cria uma ordem de venda, a fábrica
-      <b>implanta um novo contrato de escrow</b> só para aquela ordem. Esse escrow guarda
-      os tokens do vendedor e as regras da troca.
-    </p>
+        function api() {
+            if (!window.pywebview || !window.pywebview.api) {
+                throw new Error("pywebview ainda não está pronto.");
+            }
+            return window.pywebview.api;
+        }
 
-    <h3>2. O fluxo de uma ordem</h3>
-    <div class="flow">
-      <span class="step">1. Vendedor aprova BRN</span>
-      <span class="sep">→</span>
-      <span class="step">2. Cria ordem (BRN travado)</span>
-      <span class="sep">→</span>
-      <span class="step">3. Comprador aprova USDC</span>
-      <span class="sep">→</span>
-      <span class="step">4. Executa a ordem</span>
-      <span class="sep">→</span>
-      <span class="step">5. Troca atômica</span>
-    </div>
-    <ol>
-      <li><b>Aprovar BRN:</b> o vendedor autoriza a fábrica a mover seus BRN
-          (<code>approve</code> no token BRN).</li>
-      <li><b>Criar ordem:</b> chama <code>criarOrdem(tokenOferecido, tokenDesejado, valorOferecido, valorDesejado)</code>.
-          A fábrica cria o escrow e <b>puxa os BRN</b> do vendedor para dentro dele.</li>
-      <li><b>Aprovar USDC:</b> o comprador autoriza o escrow a mover seus USDC.</li>
-      <li><b>Executar:</b> o comprador chama <code>executar()</code> no escrow. O contrato
-          faz a <b>troca atômica</b>: manda os BRN para o comprador e os USDC para o vendedor.</li>
-      <li><b>Cancelar:</b> enquanto ninguém executou, o vendedor pode chamar
-          <code>cancelar()</code> e receber os BRN de volta.</li>
-    </ol>
+        // ════════════════════════════════════════════
+        // Aguarda pywebview
+        // ════════════════════════════════════════════
+        window.addEventListener('pywebviewready', () => {
+            log('✅ pywebview pronto!');
+            setApiStatus(true);
+            log('Clique em "🎲 Criar Nova Carteira" para começar.');
+            refreshP2P();
+        });
 
-    <h3>3. Por que é seguro?</h3>
-    <p>
-      A troca acontece <b>dentro do contrato</b>, na mesma transação. Ou as duas pernas
-      (BRN e USDC) acontecem juntas, ou nada acontece. Não existe o risco de uma parte
-      enviar e a outra não enviar — é <b>atômico</b>. Os BRN ficam <b>travados no escrow</b>,
-      então o comprador tem a garantia de que o vendedor realmente tem os tokens.
-    </p>
+        setTimeout(() => {
+            if (window.pywebview && window.pywebview.api) {
+                setApiStatus(true);
+                log('✅ pywebview detectado (fallback).');
+            } else {
+                log('⚠️ pywebview ainda não respondeu. Aguarde…');
+            }
+        }, 1500);
 
-    <h3>4. O que este front-end faz</h3>
-    <ul>
-      <li><b>Lê o mural direto da blockchain</b> (via RPC público), sem precisar de carteira.</li>
-      <li>Mostra o <b>contador de ordens ativas</b> e o estado de cada uma.</li>
-      <li>Faz o <b>approve automático</b> de BRN (para a fábrica) e de USDC (para o escrow).</li>
-      <li>Permite <b>criar</b>, <b>executar</b> e <b>cancelar</b> ordens pela MetaMask.</li>
-      <li>Usa <b>vários RPCs com fallback</b> e leitura paralela para nunca travar.</li>
-    </ul>
+        // ════════════════════════════════════════════
+        // Rede P2P
+        // ════════════════════════════════════════════
+        async function refreshP2P() {
+            if (!API_READY) return;
+            try {
+                const s = await api().get_p2p_status();
+                document.getElementById('p2p-status').innerHTML =
+                    `🔹 Peers conectados: <b>${s.peer_count}</b><br>` +
+                    `🔹 Endpoint: <b>${s.endpoint}</b><br>` +
+                    `🔹 Multicast: <b>${s.multicast_active ? 'ativo' : 'off'}</b>`;
+            } catch (e) {
+                log('❌ P2P: ' + e.message);
+            }
+        }
 
-    <h3>5. Endereços usados</h3>
-    <ul>
-      <li><b>EscrowFactory:</b> <code>0x5C305aCFF5cDFAee90276c2acEA4Aa841f7062d8</code></li>
-      <li><b>Token BRN:</b> <code>0xdBc1c747B1D4c27113F65A4620b8fEaC74e2A210</code> (18 decimais)</li>
-      <li><b>Token USDC:</b> <code>0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174</code> (6 decimais)</li>
-      <li><b>Rede:</b> Polygon Mainnet (chainId 137)</li>
-    </ul>
+        // ════════════════════════════════════════════
+        // Carteira
+        // ════════════════════════════════════════════
+        async function generateWallet() {
+            log('Gerando chaves secp256k1…');
+            try {
+                const kp = await api().generate_wallet();
 
-    <div class="note">
-      ⚠️ <b>Atenção:</b> este é um contrato <b>não verificado</b> no PolygonScan. A interface
-      abaixo foi reconstruída a partir do bytecode. Teste sempre com valores pequenos antes
-      de usar valores reais.
-    </div>
-  </section>
+                wallet.address = kp.address;
+                wallet.sk = kp.spend_secret_key;
+                wallet.pk = kp.public_key;
 
-  <footer>
-    Carteira BRN P2P · Mural on-chain · Polygon Mainnet ·
-    <a href="https://polygonscan.com/address/0x5C305aCFF5cDFAee90276c2acEA4Aa841f7062d8" target="_blank" rel="noopener">ver contrato no PolygonScan</a>
-  </footer>
-</div>
+                document.getElementById('wallet-address').value = kp.address;
+                document.getElementById('wallet-sk').value = kp.spend_secret_key;
+                document.getElementById('wallet-pk').value = kp.public_key;
 
-<div id="toasts"></div>
+                log('✅ Carteira criada: ' + kp.address.slice(0, 16) + '…');
+                await checkBalances();
+            } catch (e) {
+                log('❌ Erro ao gerar carteira: ' + e.message);
+            }
+        }
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
-<script src="app.js"></script>
+        async function checkBalances() {
+            if (!wallet.address) {
+                log('⚠️ Gere uma carteira primeiro.');
+                return;
+            }
+
+            log('Consultando saldo…');
+            try {
+                const p = await api().portfolio(wallet.address);
+                const box = document.getElementById('balance-display');
+
+                if (p.erro) {
+                    box.textContent = 'Erro: ' + p.erro;
+                    log('❌ ' + p.erro);
+                    return;
+                }
+
+                let html = '';
+                for (const asset in p) {
+                    const info = p[asset];
+                    html += `<div>🔹 <b>${asset}</b>: ` +
+                            `${info.amount.toFixed(8)} ` +
+                            `<span style="font-size:11px;color:#8b949e">` +
+                            `(disponível: ${info.available.toFixed(8)})` +
+                            `</span></div>`;
+                }
+
+                box.innerHTML = html || 'Saldo: 0.0 BRN';
+                log('✅ Saldo atualizado.');
+            } catch (e) {
+                log('❌ Erro no saldo: ' + e.message);
+            }
+        }
+
+        async function requestFaucet() {
+            if (!wallet.address) {
+                log('⚠️ Gere uma carteira primeiro.');
+                return;
+            }
+
+            log('Chamando faucet…');
+            try {
+                const r = await api().faucet(wallet.address);
+                log((r.ok ? '✅ ' : '❌ ') + r.msg);
+                await checkBalances();
+            } catch (e) {
+                log('❌ Erro no faucet: ' + e.message);
+            }
+        }
+
+        // ════════════════════════════════════════════
+        // Backup
+        // ════════════════════════════════════════════
+        async function exportWallet() {
+            const file = document.getElementById('file-name').value.trim();
+            const pass = document.getElementById('file-pass').value;
+
+            if (!wallet.address) {
+                log('⚠️ Gere uma carteira primeiro.');
+                return;
+            }
+            if (pass.length < 12) {
+                log('❌ Senha precisa de 12+ caracteres.');
+                return;
+            }
+
+            log('Salvando carteira…');
+            try {
+                const r = await api().save_wallet(
+                    file, pass, wallet.address, wallet.sk, wallet.pk
+                );
+                log((r.status === 'sucesso' ? '✅ ' : '❌ ') +
+                    (r.message || ''));
+            } catch (e) {
+                log('❌ Erro ao salvar: ' + e.message);
+            }
+        }
+
+        async function importWallet() {
+            const file = document.getElementById('file-name').value.trim();
+            const pass = document.getElementById('file-pass').value;
+
+            if (!pass) {
+                log('❌ Informe a senha.');
+                return;
+            }
+
+            log('Carregando carteira…');
+            try {
+                const r = await api().load_wallet(file, pass);
+
+                if (r.status === 'sucesso') {
+                    wallet.address = r.address;
+                    wallet.sk = r.spend_secret_key;
+                    wallet.pk = r.public_key || '';
+
+                    document.getElementById('wallet-address').value = r.address;
+                    document.getElementById('wallet-sk').value = r.spend_secret_key;
+                    document.getElementById('wallet-pk').value = r.public_key || '';
+
+                    log('✅ Carteira restaurada!');
+                    await checkBalances();
+                } else {
+                    log('❌ ' + r.message);
+                }
+            } catch (e) {
+                log('❌ Erro ao carregar: ' + e.message);
+            }
+        }
+
+        // ════════════════════════════════════════════
+        // Envio
+        // ════════════════════════════════════════════
+        async function sendTransaction() {
+            const to = document.getElementById('tx-to').value.trim();
+            const amount = parseFloat(
+                document.getElementById('tx-amount').value
+            );
+
+            if (!wallet.address) {
+                log('⚠️ Gere uma carteira primeiro.');
+                return;
+            }
+            if (!to || !amount || amount <= 0) {
+                log('⚠️ Preencha destinatário e valor.');
+                return;
+            }
+            if (!/^brn1[0-9a-fA-F]{40}$/.test(to)) {
+                log('❌ Endereço inválido (esperado brn1 + 40 hex).');
+                return;
+            }
+
+            log(`Enviando ${amount} BRN para ${to.slice(0, 16)}…`);
+
+            try {
+                const r = await api().send_funds(
+                    wallet.address, to, amount,
+                    wallet.sk, wallet.pk
+                );
+                log((r.status === 'sucesso' ? '✅ ' : '❌ ') + r.message);
+                await checkBalances();
+            } catch (e) {
+                log('❌ Erro no envio: ' + e.message);
+            }
+        }
+
+        // ════════════════════════════════════════════
+        // Mineração
+        // ════════════════════════════════════════════
+        async function toggleMining() {
+            if (!wallet.address) {
+                log('⚠️ Gere uma carteira primeiro.');
+                return;
+            }
+
+            try {
+                const r = await api().toggle_continuous_mining(
+                    wallet.address
+                );
+
+                mining = r.is_mining;
+
+                const btn = document.getElementById('btn-mining');
+                const st = document.getElementById('mining-status');
+
+                btn.textContent = mining
+                    ? '🛑 Parar Mineração'
+                    : '▶ Iniciar Mineração';
+                st.className = 'status ' + (mining ? 'ok' : 'err');
+                st.textContent = mining ? 'Minerando…' : 'Parada';
+
+                log((r.status === 'sucesso' ? '✅ ' : '❌ ') + r.message);
+            } catch (e) {
+                log('❌ Erro na mineração: ' + e.message);
+            }
+        }
+
+        // ════════════════════════════════════════════
+        // Polling automático
+        // ════════════════════════════════════════════
+
+        // P2P a cada 4s
+        setInterval(refreshP2P, 4000);
+
+        // Estado da mineração + saldo a cada 5s
+        setInterval(async () => {
+            if (!API_READY) return;
+
+            try {
+                const s = await api().get_full_chain();
+
+                const st = document.getElementById('mining-status');
+                const btn = document.getElementById('btn-mining');
+
+                st.className = 'status ' + (s.is_mining ? 'ok' : 'err');
+                st.textContent = s.is_mining ? 'Minerando…' : 'Parada';
+
+                btn.textContent = s.is_mining
+                    ? '🛑 Parar Mineração'
+                    : '▶ Iniciar Mineração';
+
+                if (wallet.address) await checkBalances();
+            } catch (_) {
+                /* ignora silenciosamente */
+            }
+        }, 5000);
+    </script>
 </body>
 </html>
-

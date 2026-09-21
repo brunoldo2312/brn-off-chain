@@ -1,0 +1,20 @@
+# bootstrap_usdc.py
+from bruno_blockchain_real import Blockchain, Transaction
+from wallet_gui import load_identity
+from cripto_wallet import WalletManager
+
+id_ = load_identity()
+chain = Blockchain(node_identity=id_)
+
+# 1) criar USDC
+tx = Transaction.build("asset_create", "USDC", id_["address"], id_["address"], 0,
+    chain.state.nonce(id_["address"]), id_["spend_secret_key"], id_["public_key"],
+    metadata={"asset_id":"USDC","name":"USD Coin","symbol":"USDC",
+              "asset_type":"currency","decimals":6,"issuer":id_["address"],
+              "transfer_restricted":False,"max_supply":0})
+print(chain.add_transaction(tx))
+
+# 2) emitir 1M USDC
+tx = Transaction.build("issue", "USDC", id_["address"], id_["address"], 1_000_000,
+    chain.state.nonce(id_["address"]), id_["spend_secret_key"], id_["public_key"])
+print(chain.add_transaction(tx))

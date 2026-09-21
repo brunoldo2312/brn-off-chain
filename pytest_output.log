@@ -1,0 +1,22 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0 -- /home/bruno/Imagens/brn-final/venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /home/bruno/Imagens/brn-final
+plugins: cov-7.1.0
+collecting ... collected 0 items / 1 error
+
+==================================== ERRORS ====================================
+__________________ ERROR collecting tests/test_blockchain.py ___________________
+ImportError while importing test module '/home/bruno/Imagens/brn-final/tests/test_blockchain.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_blockchain.py:11: in <module>
+    from cripto_wallet import WalletManager
+E   ModuleNotFoundError: No module named 'cripto_wallet'
+=========================== short test summary info ============================
+ERROR tests/test_blockchain.py
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+=============================== 1 error in 0.80s ===============================

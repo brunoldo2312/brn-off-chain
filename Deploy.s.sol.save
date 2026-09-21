@@ -1,0 +1,43 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "forge-std/Script.sol";
+import "../src/RWAToken.sol";
+import "../src/KYCRegistry.sol";
+
+contract DeployScript is Script {
+    function run() external {
+        uint256 deployerKey = vm.envUint("DEPLOY_PRIVATE_KEY");
+        address deployer = vm.addr(deployerKey);
+
+        console.log("=== Deploy iniciado ===");
+        console.log("Deployer:", deployer);
+        console.log("Chain ID:", block.chainid);
+        console.log("");
+
+        vm.startBroadcast(deployerKey);
+
+        KYCRegistry kyc = new KYCRegistry(deployer);
+        console.log("KYCRegistry     :", address(kyc));
+
+        RWAToken brn = new RWAToken(
+            "BRN Token",
+            "BRN",
+            "currency",
+            "BRN-001",
+            "ipfs://QmBrnToken",
+            100_000_00,
+            deployer
+        );
+        console.log("RWAToken (BRN)  :", address(brn));
+
+        vm.stopBroadcast();
+
+        console.log("");
+        console.log("=== Deploy concluido ===");
+        console.log("");
+        console.log("Cole no .env:");
+        console.log("KYC_REGISTRY_ADDRESS=", address(kyc));
+        console.log("RWA_TOKEN_ADDRESS=", address(brn));
+    }
+}

@@ -1,0 +1,119 @@
+const net = require('net');
+
+// Configurações da BRN Crypto
+const BRN_CONFIG = {
+  MAGIC_BYTES: 'BRN_MAINNET_V1',
+  GENESIS_HASH: '000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f',
+  DEFAULT_PORT: 8333,
+  SEED_NODES: ['seed1.brncrypto.org:8333', 'seed2.brncrypto.org:8333'] // IPs ou domínios semente
+};
+
+class BRNNode {
+  constructor(port = BRN_CONFIG.DEFAULT_PORT) {
+    this.port = port;
+    this.validPeers = new Set(); // Lista de nós validados
+    this.server = null;
+  }
+
+  // 1. Inicia o servidor TCP para receber outros nós
+  startServer() {
+    this.server = net.createServer((socket) => {
+      this.handleIncomingConnection(socket);
+    });
+
+    this.server.listen(this.port, () => {
+      console.log(`[BRN Node] Escutando novas conexões na porta ${this.port}`);
+      this.discoverPeers();
+    });
+  }
+
+  // 2. Tenta se conectar aos Seed Nodes para descobrir novos pares
+  discoverPeers() {
+    BRN_CONFIG.SEED_NODES.forEach((seed) => {
+      const [host, port] = seed.split(':');
+      this.connectToPeer(host, parseInt(port));
+    });
+  }
+
+  // 3. Conecta a um nó e envia a validação (Handshake)
+  connectToPeer(host, port) {
+    const peerAddress = `${host}:${port}`;
+    if (this.validPeers.has(peerAddress)) return;
+
+    const socket = net.connect({ host, port }, () => {
+      console.log(`[BRN Discovery] Conectado ao nó ${peerAddress}. Enviando Handshake...`);
+      
+      // Envia os metadados para validação
+      const handshakePayload = JSON.stringify({
+        type: 'HANDSHAKE',
+        magicBytes: BRN_CONFIG.MAGIC_BYTES,
+        genesisHash: BRN_CONFIG.GENESIS_HASH,
+        nodePort: this.port
+      });
+
+      socket.write(handshakePayload);
+    });
+
+    socket.on('data', (data) => {
+      this.processPeerMessage(socket, peerAddress, data);
+    });
+
+    socket.on('error', () => {
+      // Falha de conexão: remove da lista se existir
+      this.validPeers.delete(peerAddress);
+    });
+  }
+
+  // 4. Valida as respostas recebidas
+  processPeerMessage(socket, peerAddress, data) {
+    try {
+      const message = JSON.parse(data.toString());
+
+      if (message.type === 'HANDSHAKE_RESPONSE' || message.type === 'HANDSHAKE') {
+        // Regras de validação do nó
+        const isValidMagic = message.magicBytes === BRN_CONFIG.MAGIC_BYTES;
+        const isValidGenesis = message.genesisHash === BRN_CONFIG.GENESIS_HASH;
+
+        if (isValidMagic && isValidGenesis) {
+          console.log(`[BRN Validation] ✅ Nó ${peerAddress} VÁLIDO e adicionado à rede!`);
+          this.validPeers.add(peerAddress);
+
+          // Pede a lista de nós conhecidos por esse par
+          if (message.type === 'HANDSHAKE') {
+            socket.write(JSON.stringify({
+              type: 'HANDSHAKE_RESPONSE',
+              status: 'ACCEPTED',
+              magicBytes: BRN_CONFIG.MAGIC_BYTES,
+              genesisHash: BRN_CONFIG.GENESIS_HASH,
+              knownPeers: Array.from(this.validPeers)
+            }));
+          }
+
+          // Se recebeu uma lista de pares novos, tenta se conectar a eles também
+          if (message.knownPeers) {
+            message.knownPeers.forEach((newPeer) => {
+              const [ip, port] = newPeer.split(':');
+              this.connectToPeer(ip, port);
+            });
+          }
+        } else {
+          console.log(`[BRN Validation] ❌ Nó ${peerAddress} INVÁLIDO. Redes incompatíveis.`);
+          socket.destroy(); // Desconecta nós inválidos
+        }
+      }
+    } catch (err) {
+      socket.destroy();
+    }
+  }
+
+  handleIncomingConnection(socket) {
+    const remoteAddress = `${socket.remoteAddress}:${socket.remotePort}`;
+    socket.on('data', (data) => {
+      this.processPeerMessage(socket, remoteAddress, data);
+    });
+  }
+}
+
+// Inicializa o nó
+const myNode = new BRNNode(8333);
+myNode.startServer();

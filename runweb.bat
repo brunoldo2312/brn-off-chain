@@ -1,0 +1,1 @@
+[Environment]::SetEnvironmentVariable("3J8xHeVX46aXrOZeXnKrVVFMLTr_AUTHTOKEN", "COLE_AQUI_O_TOKEN_NOVO", "User")
