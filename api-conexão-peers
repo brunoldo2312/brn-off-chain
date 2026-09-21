@@ -1,0 +1,108 @@
+import sqlite3
+from datetime import datetime, timedelta
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+
+app = FastAPI()
+
+# Permite acesso do GitHub Pages
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+def init_db():
+    conn = sqlite3.connect("mineradores.db")
+    cursor = conn.cursor()
+    # Tabela para registrar o worker, IP, e último horário que mandou sinal
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS workers (
+            id TEXT PRIMARY KEY,
+            ip TEXT,
+            hashrate REAL,
+            ultimo_sinal TIMESTAMP
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+
+init_db()
+
+
+class SinalWorker(BaseModel):
+    worker_id: str  # Nome ou identificador do PC
+    ip: str  # IP do minerador
+    hashrate: float  # Ex: 45.5 (MH/s)
+
+
+# --- ROTA QUE OS MINERADORES CHAMAM ---
+@app.post("/api/ping")
+def registrar_sinal(dados: SinalWorker):
+    """Cada minerador envia requisições para esta rota para provar que está online."""
+    conn = sqlite3.connect("mineradores.db")
+    cursor = conn.cursor()
+
+    agora = datetime.now()
+
+    # Insere ou atualiza o status do worker no banco
+    cursor.execute(
+        """
+        INSERT INTO workers (id, ip, hashrate, ultimo_sinal)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+            ip = excluded.ip,
+            hashrate = excluded.hashrate,
+            ultimo_sinal = excluded.ultimo_sinal
+    """,
+        (dados.worker_id, dados.ip, dados.hashrate, agora),
+    )
+
+    conn.commit()
+    conn.close()
+    return {"status": "ok", "mensagem": f"Worker {dados.worker_id} atualizado"}
+
+
+# --- ROTA QUE O GITHUB PAGES CONSULTA ---
+@app.get("/api/status")
+def consultar_rede():
+    """Retorna o número total de PCs conectados e a lista detalhada."""
+    conn = sqlite3.connect("mineradores.db")
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, ip, hashrate, ultimo_sinal FROM workers")
+    linhas = cursor.fetchall()
+    conn.close()
+
+    agora = datetime.now()
+    limite_offline = timedelta(minutes=2)  # Se não mandar sinal por 2 min, considera offline
+
+    workers_lista = []
+    online_count = 0
+
+    for id_w, ip, hashrate, ultimo_sinal_str in linhas:
+        ultimo_sinal = datetime.fromisoformat(ultimo_sinal_str)
+        is_online = (agora - ultimo_sinal) < limite_offline
+
+        if is_online:
+            online_count += 1
+
+        workers_lista.append(
+            {
+                "worker_id": id_w,
+                "ip": ip,
+                "hashrate": hashrate,
+                "status": "online" if is_online else "offline",
+                "visto_em": ultimo_sinal_str,
+            }
+        )
+
+    return {
+        "total_cadastrados": len(linhas),
+        "total_online": online_count,
+        "workers": workers_lista,
+    }
